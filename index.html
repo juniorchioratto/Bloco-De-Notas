@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bloco de Notas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    :root {
+      --bg-body: #050505;
+      --bg-window: #202020;
+      --bg-window-alt: #1b1b1b;
+      --bg-titlebar: #2b2b2b;
+      --bg-tabbar: #252525;
+      --bg-tab-active: #333333;
+      --bg-tab-hover: #303030;
+      --bg-status: #191919;
+      --fg-text: #f5f5f5;
+      --fg-text-muted: #a5a5a5;
+      --border-window: #323232;
+      --border-tab: #3a3a3a;
+      --accent: #4cc2ff;
+      --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-mono: "Cascadia Code", "Consolas", "Courier New", monospace;
+      --editor-scroll-thumb: rgba(0, 0, 0, 0);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; }
+
+    body {
+      background: radial-gradient(circle at top left, #202020 0, #050505 40%, #000 100%);
+      color: var(--fg-text);
+      font-family: var(--font-ui);
+      display: flex;
+    }
+
+    .window {
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(circle at top, #262626 0, #171717 45%, #121212 100%);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* APP ICON */
+    .app-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      background: linear-gradient(
+        to bottom,
+        #3aa7ff 0%,
+        #2c8be0 40%,
+        #1f6fbf 70%,
+        #14508f 100%
+      );
+      position: relative;
+      overflow: hidden;
+      margin-right: 6px;
+      flex-shrink: 0;
+      box-shadow:
+        0 0 0 1px rgba(0,0,0,0.6),
+        0 1px 2px rgba(0,0,0,0.7);
+      align-self: center;
+    }
+
+    .app-icon::before {
+      content: "";
+      position: absolute;
+      left: 4px;
+      right: 4px;
+      top: 4px;
+      height: 2px;
+      background: #ffffff;
+      border-radius: 2px;
+      box-shadow:
+        0 3px 0 #ffffff,
+        0 6px 0 #ffffff;
+    }
+
+    .app-icon::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 3px;
+      background: #f8a33b;
+    }
+
+    /* TAB BAR */
+    .tab-bar {
+      height: 34px;
+      background: var(--bg-tabbar);
+      border-bottom: 1px solid var(--border-tab);
+      display: flex;
+      align-items: center;
+      padding: 0 6px;
+      gap: 4px;
+    }
+
+    .tab-scroll {
+      width: 22px;
+      height: 24px;
+      border: none;
+      background: transparent;
+      color: var(--fg-text-muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      cursor: pointer;
+      flex-shrink: 0;
+      font-size: 14px;
+    }
+
+    .tab-scroll:hover:not(:disabled) {
+      background: #3a3a3a;
+      color: #fff;
+    }
+
+    .tab-scroll:disabled {
+      opacity: 0.25;
+      cursor: default;
+    }
+
+    .tabs-viewport {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+    }
+
+    .tabs-wrapper {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .tabs {
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+      white-space: nowrap;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: none;
+    }
+
+    .tabs::-webkit-scrollbar { display: none; }
+
+    .tab {
+      max-width: 220px;
+      min-width: 80px;
+      padding: 6px 10px 4px 10px;
+      border-radius: 6px 6px 0 0;
+      background: transparent;
+      border: 1px solid transparent;
+      border-bottom: none;
+
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--fg-text-muted);
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .tab:hover {
+      background: var(--bg-tab-hover);
+      color: var(--fg-text);
+      border-color: var(--border-tab);
+    }
+
+    .tab.active {
+      background: var(--bg-tab-active);
+      color: var(--fg-text);
+      border-color: var(--border-tab);
+      border-bottom: 1px solid var(--bg-window-alt);
+    }
+
+    .tab-title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      line-height: 1;
+    }
+
+    .tab-close {
+      background: transparent;
+      border: none;
+      color: var(--fg-text-muted);
+      cursor: pointer;
+      font-size: 11px;
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .tab-close:hover {
+      background: #444;
+      color: #fff;
+    }
+
+    .tab-add-btn {
+      background: transparent;
+      border: none;
+      color: var(--fg-text-muted);
+      cursor: pointer;
+      width: 28px;
+      height: 24px;
+      font-size: 18px;
+      margin-left: 4px;
+      align-self: center;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tab-add-btn:hover {
+      background: #3a3a3a;
+      color: #fff;
+      border-radius: 6px;
+    }
+
+    /* CONTENT */
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-window-alt);
+    }
+
+    /* FIND BAR – NOVO VISUAL DARK */
+    .find-bar {
+      display: none; /* o JS continua controlando isso */
+      padding: 10px 16px;
+      background: #181818;
+      border-bottom: 1px solid #323232;
+      font-size: 12px;
+      color: #f5f5f5;
+      flex-shrink: 0;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+      text-align: center; /* centraliza as linhas dentro da barra */
+    }
+
+    .find-row {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin: 3px auto;
+    }
+
+    .find-input,
+    .replace-input {
+      width: 260px;
+      max-width: 100%;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1px solid #3a3a3a;
+      background: #111111;
+      color: var(--fg-text);
+      outline: none;
+      font-family: var(--font-ui);
+      font-size: 12px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+    }
+
+    .find-input::placeholder,
+    .replace-input::placeholder {
+      color: var(--fg-text-muted);
+    }
+
+    .find-input:focus,
+    .replace-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(76,194,255,0.4);
+    }
+
+    /* CSS PARA AS OPÇÕES DE PESQUISA (RADIO BUTTONS) */
+    .find-options {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--fg-text-muted);
+    }
+
+    .find-options label {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+
+    .find-options input {
+      margin: 0;
+      cursor: pointer;
+      accent-color: var(--accent); /* Cor do radio button */
+    }
+
+    .fr-btn {
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #3a3a3a;
+      background: #262626;
+      color: var(--fg-text-muted);
+      font-size: 12px;
+      cursor: pointer;
+      outline: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition:
+        background 0.15s ease,
+        border-color 0.15s ease,
+        color 0.15s ease,
+        transform 0.06s ease;
+    }
+
+    .fr-btn:hover {
+      background: #333333;
+      border-color: #4a4a4a;
+      color: var(--fg-text);
+    }
+
+    .fr-btn:active {
+      transform: translateY(1px);
+    }
+
+    .fr-btn.icon {
+      width: 26px;
+      padding: 6px 0;
+      font-size: 11px;
+    }
+
+    .fr-btn.primary {
+      background: var(--accent);
+      border-color: #62d0ff;
+      color: #000;
+      font-weight: 500;
+      box-shadow:
+        0 0 0 1px rgba(0,0,0,0.4),
+        0 0 10px rgba(76,194,255,0.4);
+    }
+
+    .fr-btn.primary:hover {
+      background: #5fd1ff;
+    }
+
+    .fr-btn.danger {
+      background: transparent;
+      border-color: transparent;
+      color: #888888;
+    }
+
+    .fr-btn.danger:hover {
+      background: #3a1919;
+      border-color: #a53333;
+      color: #ff8787;
+    }
+
+    /* EDITOR WRAPPER */
+    .editor-wrapper {
+      flex: 1;
+      padding: 10px;
+      position: relative;
+      white-space: normal;
+      word-break: break-word;
+    }
+
+    /* EDITOR */
+    .editor {
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+      resize: none;
+      outline: none;
+      color: var(--fg-text);
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 17px;
+      line-height: 1.1;
+      caret-color: var(--accent);
+
+      /* esconder scrollbar nativa */
+      scrollbar-width: none;          /* Firefox */
+    }
+
+    /* esconder scrollbar nativa no Chrome/Edge/Safari */
+    .editor::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+
+    .editor::selection {
+      background: #4cc2ff;
+      color: #000;
+    }
+
+    /* STATUS BAR */
+    .status-bar {
+      height: 28px;
+      background: var(--bg-status);
+      border-top: 1px solid #333333;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 10px;
+      font-size: 12px;
+      color: var(--fg-text-muted);
+      box-shadow: none;
+    }
+
+    .status-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-pill {
+      padding: 2px 10px;
+      border-radius: 999px;
+      background: #252525;
+      border: 1px solid #303030;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.7);
+      color: #909090;
+    }
+
+    .status-divider {
+      width: 1px;
+      height: 14px;
+      background: #414141;
+      margin: 0 4px;
+    }
+
+    /* BOTÃO SALVAR */
+    .save-btn {
+      background: transparent;
+      border: 1px solid #3a3a3a;
+      color: var(--fg-text-muted);
+      font-size: 11px;
+      padding: 2px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: var(--font-ui);
+    }
+    
+    .save-btn:hover {
+      background: #333;
+      color: #fff;
+      border-color: #555;
+    }
+
+    /* SCROLLBAR FAKE DO EDITOR */
+    .fake-scrollbar {
+      position: absolute;
+      right: 4px;
+      top: 2px;
+      width: 4px;
+      border-radius: 999px;
+      background: rgba(200, 200, 200, 0.9);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s ease-out;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="window" id="notepadWindow">
+
+    <div class="tab-bar">
+      <div class="app-icon"></div>
+
+      <button class="tab-scroll" id="tabScrollLeft">◀</button>
+
+      <div class="tabs-viewport">
+        <div class="tabs-wrapper">
+          <div class="tabs" id="tabsContainer">
+            <button class="tab-add-btn" id="addTabBtnInner">+</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="tab-scroll" id="tabScrollRight">▶</button>
+
+      <button class="tab-add-btn" id="addTabBtnOuter">+</button>
+    </div>
+
+    <div class="content">
+      <div class="find-bar" id="findBar">
+        <div class="find-row">
+          <input type="text" id="findInput" class="find-input" placeholder="Localizar" />
+          <button class="fr-btn danger" id="findCloseBtn">✕</button>
+          <button class="fr-btn icon" id="findPrevBtn">↑</button>
+          <button class="fr-btn icon" id="findNextBtn">↓</button>
+        </div>
+        <div class="find-row">
+          <input type="text" id="replaceInput" class="replace-input" placeholder="Substituir por" />
+          <button class="fr-btn" id="replaceBtn">Substituir</button>
+          <button class="fr-btn primary" id="replaceAllBtn">Substituir tudo</button>
+        </div>
+        
+        <div class="find-options">
+          <label>
+            <input type="radio" name="searchType" value="exact" checked />
+            Pesquisa Exata
+          </label>
+          <label>
+            <input type="radio" name="searchType" value="free" />
+            Pesquisa Livre
+          </label>
+        </div>
+      </div>
+
+      <div class="editor-wrapper">
+        <textarea id="editor" class="editor" spellcheck="false"></textarea>
+      </div>
+
+      <div class="status-bar">
+        <div class="status-group">
+          <span id="statusLines" class="status-pill">Linhas: 1</span>
+          <span class="status-divider"></span>
+          <span id="statusWords" class="status-pill">Palavras: 0</span>
+          <span class="status-divider"></span>
+          <span id="statusChars" class="status-pill">Caracteres: 0</span>
+          <span class="status-divider"></span>
+          <span id="statusPrompts" class="status-pill">Prompts: 0</span>
+        </div>
+        <button id="saveBtn" class="save-btn">Salvar Como</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const editor = document.getElementById("editor");
+  const editorWrapper = document.querySelector(".editor-wrapper");
+
+  // ----- BARRA DE ROLAGEM FAKE DO EDITOR -----
+  const fakeScrollbar = document.createElement("div");
+  fakeScrollbar.className = "fake-scrollbar";
+  editorWrapper.appendChild(fakeScrollbar);
+
+  let scrollTimeout = null;
+  let suppressScrollBar = false; 
+
+  function showEditorScrollbar() {
+    const scrollHeight = editor.scrollHeight;
+    const clientHeight = editor.clientHeight;
+
+    if (scrollHeight <= clientHeight) {
+      fakeScrollbar.style.opacity = "0";
+      return;
+    }
+
+    const trackHeight = editorWrapper.clientHeight;
+    const ratio = clientHeight / scrollHeight;
+    const thumbHeight = Math.max(20, trackHeight * ratio);
+
+    const maxScrollTop = scrollHeight - clientHeight;
+    const scrollTop = editor.scrollTop;
+    const maxThumbTop = trackHeight - thumbHeight;
+    const thumbTop = maxScrollTop > 0 ? (scrollTop / maxScrollTop) * maxThumbTop : 0;
+
+    fakeScrollbar.style.height = thumbHeight + "px";
+    fakeScrollbar.style.top = thumbTop + "px";
+    fakeScrollbar.style.opacity = "1";
+
+    if (scrollTimeout) clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(() => {
+      fakeScrollbar.style.opacity = "0";
+    }, 700);
+  }
+
+  function handleEditorScroll() {
+    if (suppressScrollBar) return;
+    showEditorScrollbar();
+  }
+
+  editor.addEventListener("scroll", handleEditorScroll);
+
+  editor.addEventListener("wheel", () => {
+    const before = editor.scrollTop;
+    requestAnimationFrame(() => {
+      if (editor.scrollTop !== before) {
+        showEditorScrollbar();
+      }
+    });
+  });
+
+  // ----- TABS & BARRA DE ABAS COM SETAS -----
+  const statusLines = document.getElementById("statusLines");
+  const statusWords = document.getElementById("statusWords");
+  const statusChars = document.getElementById("statusChars");
+  const statusPrompts = document.getElementById("statusPrompts");
+  const tabsContainer = document.getElementById("tabsContainer");
+  const addTabBtnInner = document.getElementById("addTabBtnInner");
+  const addTabBtnOuter = document.getElementById("addTabBtnOuter");
+  const tabScrollLeftBtn  = document.getElementById("tabScrollLeft");
+  const tabScrollRightBtn = document.getElementById("tabScrollRight");
+  const tabsViewport = document.querySelector(".tabs-viewport");
+  const tabsWrapper  = document.querySelector(".tabs-wrapper");
+  const findBar = document.getElementById("findBar");
+  const findInput = document.getElementById("findInput");
+  const replaceInput = document.getElementById("replaceInput");
+  const findCloseBtn = document.getElementById("findCloseBtn");
+  const findPrevBtn = document.getElementById("findPrevBtn");
+  const findNextBtn = document.getElementById("findNextBtn");
+  const replaceBtn = document.getElementById("replaceBtn");
+  const replaceAllBtn = document.getElementById("replaceAllBtn");
+  const saveBtn = document.getElementById("saveBtn");
+
+  // --- INDEXEDDB SETUP ---
+  // Precisamos usar IndexedDB para persistir os handles de arquivos, 
+  // pois localStorage não suporta objetos complexos.
+  const DB_NAME = "NotepadDB";
+  const DB_VERSION = 1;
+  const STORE_NAME = "appState";
+
+  let db = null;
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME);
+        }
+      };
+
+      request.onsuccess = (event) => {
+        db = event.target.result;
+        resolve(db);
+      };
+
+      request.onerror = (event) => {
+        reject("Erro ao abrir banco de dados");
+      };
+    });
+  }
+
+  function saveStateDB(state) {
+    if (!db) return;
+    const transaction = db.transaction([STORE_NAME], "readwrite");
+    const store = transaction.objectStore(STORE_NAME);
+    store.put(state, "currentState");
+  }
+
+  function loadStateDB() {
+    return new Promise((resolve, reject) => {
+      if (!db) return resolve(null);
+      const transaction = db.transaction([STORE_NAME], "readonly");
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.get("currentState");
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(null);
+    });
+  }
+
+  let tabs = [];
+  let activeTabId = null;
+
+  let findMatches = [];
+  let findIndex = -1;
+  let findBarVisible = false;
+  let draggingTabId = null;
+
+  function updateStatus() {
+    const text = editor.value;
+    statusLines.textContent = "Linhas: " + text.split("\n").length;
+    statusWords.textContent = "Palavras: " + (text.trim().split(/\s+/).filter(w => w).length);
+    statusChars.textContent = "Caracteres: " + text.length;
+    const promptsCount = text.split(/\r?\n/).filter(l => l.trim().length > 0).length;
+    statusPrompts.textContent = "Prompts: " + promptsCount;
+  }
+
+  // Agora salvamos no IndexedDB
+  function saveState() {
+    saveStateDB({ tabs, activeTabId });
+  }
+
+  function getNextUntitledNumber() {
+    let max = 0;
+    tabs.forEach(t => {
+      const match = /^Sem título\s+(\d+)$/.exec(t.title);
+      if (match) {
+        const num = parseInt(match[1]);
+        if (num > max) max = num;
+      }
+    });
+    return max + 1;
+  }
+
+  function createNewTabObject() {
+    return {
+      id: Date.now() + Math.random(),
+      title: "Sem título " + getNextUntitledNumber(),
+      content: "",
+      scrollTop: 0,
+      selectionStart: 0,
+      selectionEnd: 0,
+      fileHandle: null // handle é salvo no IDB
+    };
+  }
+
+  function updateTabScrollButtons() {
+    if (!tabsWrapper) return;
+    const maxScrollLeft = tabsContainer.scrollWidth - tabsWrapper.clientWidth;
+    if (maxScrollLeft <= 0) {
+      tabScrollLeftBtn.style.display  = "none";
+      tabScrollRightBtn.style.display = "none";
+      addTabBtnInner.style.display = "inline-flex";
+      addTabBtnOuter.style.display = "none";
+      return;
+    }
+    tabScrollLeftBtn.style.display  = "flex";
+    tabScrollRightBtn.style.display = "flex";
+    const current = tabsContainer.scrollLeft;
+    tabScrollLeftBtn.disabled  = current <= 0;
+    tabScrollRightBtn.disabled = current >= maxScrollLeft - 1;
+    addTabBtnInner.style.display = "none";
+    addTabBtnOuter.style.display = "inline-flex";
+  }
+
+  tabScrollLeftBtn.addEventListener("click", () => {
+    tabsContainer.scrollBy({ left: -150, behavior: "smooth" });
+  });
+
+  tabScrollRightBtn.addEventListener("click", () => {
+    tabsContainer.scrollBy({ left: 150, behavior: "smooth" });
+  });
+
+  tabsContainer.addEventListener("scroll", updateTabScrollButtons);
+  window.addEventListener("resize", updateTabScrollButtons);
+
+  function renderTabs() {
+    tabsContainer.innerHTML = "";
+    tabs.forEach(tab => {
+      const el = document.createElement("div");
+      el.className = "tab" + (tab.id === activeTabId ? " active" : "");
+      el.dataset.id = tab.id;
+      el.draggable = true;
+
+      const title = document.createElement("span");
+      title.className = "tab-title";
+      title.textContent = tab.title;
+
+      const close = document.createElement("button");
+      close.className = "tab-close";
+      close.textContent = "✕";
+
+      el.appendChild(title);
+      el.appendChild(close);
+      tabsContainer.appendChild(el);
+
+      el.addEventListener("click", e => {
+        if (e.target === close) return;
+        setActiveTab(tab.id);
+      });
+
+      close.addEventListener("click", e => {
+        e.stopPropagation();
+        closeTab(tab.id);
+      });
+
+      title.addEventListener("dblclick", e => {
+        e.stopPropagation();
+        const novo = prompt("Nome da guia:", tab.title);
+        if (novo) {
+          tab.title = novo.trim();
+          renderTabs();
+          saveState();
+        }
+      });
+
+      el.addEventListener("dragstart", e => {
+        draggingTabId = tab.id;
+        e.dataTransfer.effectAllowed = "move";
+      });
+      el.addEventListener("dragend", () => { draggingTabId = null; });
+      el.addEventListener("dragover", e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; });
+      el.addEventListener("drop", e => {
+        e.preventDefault();
+        if (!draggingTabId || draggingTabId === tab.id) return;
+        const fromIndex = tabs.findIndex(t => t.id === draggingTabId);
+        const toIndex   = tabs.findIndex(t => t.id === tab.id);
+        if (fromIndex === -1 || toIndex === -1) return;
+        const rect = el.getBoundingClientRect();
+        let targetIndex = toIndex;
+        if (e.clientX > rect.left + rect.width / 2) targetIndex = toIndex + 1;
+        const [moved] = tabs.splice(fromIndex, 1);
+        if (targetIndex > fromIndex) targetIndex--;
+        tabs.splice(targetIndex, 0, moved);
+        saveState();
+        renderTabs();
+        updateTabScrollButtons();
+      });
+    });
+    tabsContainer.appendChild(addTabBtnInner);
+    updateTabScrollButtons();
+  }
+
+  function clearFindState() {
+    findMatches = [];
+    findIndex = -1;
+  }
+
+  function persistActiveTabView() {
+    if (activeTabId == null) return;
+    const tab = tabs.find(t => t.id === activeTabId);
+    if (!tab) return;
+    tab.content = editor.value;
+    tab.scrollTop = editor.scrollTop;
+    tab.selectionStart = editor.selectionStart;
+    tab.selectionEnd = editor.selectionEnd;
+  }
+
+  function syncActiveTabViewFromEditor() {
+    if (activeTabId == null) return;
+    const tab = tabs.find(t => t.id === activeTabId);
+    if (!tab) return;
+    tab.content = editor.value;
+    tab.scrollTop = editor.scrollTop;
+    tab.selectionStart = editor.selectionStart;
+    tab.selectionEnd = editor.selectionEnd;
+    saveState();
+  }
+
+  function setActiveTab(id) {
+    if (activeTabId !== null && activeTabId !== id) {
+      persistActiveTabView();
+    }
+    activeTabId = id;
+    const tab = tabs.find(t => t.id === id);
+    if (!tab) return;
+
+    suppressScrollBar = true;
+    editor.value = tab.content || "";
+    updateStatus();
+
+    const len = editor.value.length;
+    const selStart = (typeof tab.selectionStart === "number") ? tab.selectionStart : len;
+    const selEnd = (typeof tab.selectionEnd === "number") ? tab.selectionEnd : selStart;
+    const scrollTop = (typeof tab.scrollTop === "number") ? tab.scrollTop : 0;
+
+    requestAnimationFrame(() => {
+      editor.setSelectionRange(selStart, selEnd);
+      editor.scrollTop = scrollTop;
+      requestAnimationFrame(() => { suppressScrollBar = false; });
+    });
+
+    requestAnimationFrame(() => {
+      document.querySelectorAll(".tab").forEach(tabEl => {
+        tabEl.classList.toggle("active", tabEl.dataset.id == id);
+      });
+      updateTabScrollButtons();
+    });
+
+    saveState();
+    if (!findBarVisible) clearFindState();
+    setTimeout(() => editor.focus(), 0);
+  }
+
+  function addTab() {
+    const t = createNewTabObject();
+    tabs.push(t);
+    renderTabs();
+    setActiveTab(t.id);
+    requestAnimationFrame(() => {
+      tabsContainer.scrollLeft = tabsContainer.scrollWidth;
+      updateTabScrollButtons();
+    });
+  }
+
+  function closeTab(id) {
+    if (tabs.length === 1) {
+      tabs[0].title = "Sem título 1";
+      tabs[0].content = "";
+      tabs[0].fileHandle = null; // reseta handle
+      setActiveTab(tabs[0].id);
+      saveState();
+      return;
+    }
+    const i = tabs.findIndex(t => t.id === id);
+    if (i === -1) return;
+    const wasActive = (activeTabId === id);
+    tabs.splice(i, 1);
+    if (wasActive) {
+      const newIndex = i > 0 ? i - 1 : 0;
+      activeTabId = tabs[newIndex].id;
+    }
+    renderTabs();
+    if (tabs.length > 0) setActiveTab(activeTabId);
+    saveState();
+  }
+
+  editor.addEventListener("input", () => {
+    syncActiveTabViewFromEditor();
+    updateStatus();
+    clearFindState();
+  });
+
+  addTabBtnInner.addEventListener("click", addTab);
+  addTabBtnOuter.addEventListener("click", addTab);
+
+  ["select", "click"].forEach(evt => {
+    editor.addEventListener(evt, () => {
+      syncActiveTabViewFromEditor();
+    });
+  });
+
+  editor.addEventListener("keyup", e => {
+    const moveKeys = ["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","Home","End","PageUp","PageDown"];
+    if (moveKeys.includes(e.key)) syncActiveTabViewFromEditor();
+  });
+
+  function openFindBar() {
+    if (!findBarVisible) {
+      findBar.style.display = "block";
+      findBarVisible = true;
+    }
+    const selStart = editor.selectionStart;
+    const selEnd = editor.selectionEnd;
+    const selected = editor.value.substring(selStart, selEnd);
+    if (selected && !selected.includes("\n")) findInput.value = selected;
+    clearFindState();
+    findInput.focus();
+    findInput.select();
+  }
+
+  function isWordChar(ch) {
+    return !!ch && /[A-Za-zÀ-ÖØ-öø-ÿ0-9_]/.test(ch);
+  }
+
+  function closeFindBar() {
+    findBar.style.display = "none";
+    findBarVisible = false;
+    clearFindState();
+    setTimeout(() => { editor.focus(); }, 0);
+  }
+
+  function computeMatches() {
+    clearFindState();
+    const query = findInput.value;
+    if (!query) return;
+
+    const searchType = document.querySelector('input[name="searchType"]:checked').value;
+    const isFreeSearch = (searchType === "free");
+    const text = editor.value;
+
+    function normalizeQuotes(str) { return str.replace(/[“”]/g, '"'); }
+
+    if (query === '"') {
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (ch === '"' || ch === '“' || ch === '”') findMatches.push(i);
+      }
+      return;
+    }
+
+    const normText = normalizeQuotes(text);
+    const normQuery = normalizeQuotes(query);
+    const lowerText = normText.toLowerCase();
+    const lowerQuery = normQuery.toLowerCase();
+    const qLen = lowerQuery.length;
+
+    let idx = lowerText.indexOf(lowerQuery);
+    while (idx !== -1) {
+      if (isFreeSearch) {
+        findMatches.push(idx);
+      } else {
+        const beforeChar = idx === 0 ? "" : text[idx - 1];
+        const afterChar  = (idx + qLen >= text.length) ? "" : text[idx + qLen];
+        
+        const isStartWord = isWordChar(query[0]);
+        const isEndWord   = isWordChar(query[qLen - 1]);
+
+        let matchStart = false;
+        let matchEnd = false;
+
+        if (isStartWord) {
+           if (!isWordChar(beforeChar)) matchStart = true;
+        } else {
+           if (!beforeChar || /\s/.test(beforeChar)) matchStart = true;
+        }
+
+        if (isEndWord) {
+           if (!isWordChar(afterChar)) matchEnd = true;
+        } else {
+           if (!afterChar || /\s/.test(afterChar)) matchEnd = true;
+        }
+
+        if (matchStart && matchEnd) findMatches.push(idx);
+      }
+      idx = lowerText.indexOf(lowerQuery, idx + qLen);
+    }
+  }
+
+  function goToMatch(direction) {
+    const query = findInput.value;
+    if (!query) return;
+    if (!findMatches.length) {
+      computeMatches();
+      if (!findMatches.length) return;
+    }
+    if (findIndex === -1) {
+      findIndex = 0;
+    } else {
+      findIndex += direction;
+      if (findIndex < 0) findIndex = findMatches.length - 1;
+      if (findIndex >= findMatches.length) findIndex = 0;
+    }
+    const start = findMatches[findIndex];
+    const end = start + query.length;
+    editor.focus();
+    editor.setSelectionRange(start, end);
+    requestAnimationFrame(() => scrollToSelection(editor));
+  }
+
+  function scrollToSelection(textarea) {
+    const div = document.createElement("div");
+    const style = window.getComputedStyle(textarea);
+    ["fontSize","fontFamily","lineHeight","padding","border","whiteSpace","letterSpacing","wordBreak","overflowWrap","textTransform","textIndent","textAlign","width"].forEach(prop => {
+      div.style[prop] = style[prop];
+    });
+    div.style.position = "absolute";
+    div.style.visibility = "hidden";
+    div.style.whiteSpace = "pre-wrap";
+    div.style.wordBreak = "break-word";
+    div.style.top = "0";
+    div.style.left = "-9999px";
+    div.style.width = textarea.clientWidth + "px";
+
+    const before = textarea.value.slice(0, textarea.selectionStart);
+    const marker = document.createElement("span");
+    marker.textContent = textarea.value.slice(textarea.selectionStart, textarea.selectionEnd);
+    const after = textarea.value.slice(textarea.selectionEnd);
+
+    div.textContent = before;
+    div.appendChild(marker);
+    div.appendChild(document.createTextNode(after));
+    document.body.appendChild(div);
+    const markerY = marker.offsetTop;
+    document.body.removeChild(div);
+    textarea.scrollTop = markerY - textarea.clientHeight / 2;
+    showEditorScrollbar();
+  }
+
+  function replaceOne() {
+    const query = findInput.value;
+    if (!query) return;
+    if (!findMatches.length) {
+      computeMatches();
+      if (!findMatches.length) return;
+    }
+    if (findIndex === -1) findIndex = 0;
+    const replaceText = replaceInput.value ?? "";
+    const text = editor.value;
+    const start = findMatches[findIndex];
+    const end = start + query.length;
+    editor.value = text.slice(0, start) + replaceText + text.slice(end);
+    
+    const tab = tabs.find(t => t.id === activeTabId);
+    if (tab) tab.content = editor.value;
+    updateStatus();
+    saveState();
+
+    const posAfter = start + replaceText.length;
+    computeMatches();
+    if (!findMatches.length) {
+      clearFindState();
+      editor.focus();
+      editor.setSelectionRange(posAfter, posAfter);
+      requestAnimationFrame(() => scrollToSelection(editor));
+      return;
+    }
+    const nextIndex = findMatches.findIndex(p => p >= posAfter);
+    findIndex = nextIndex === -1 ? 0 : nextIndex;
+    const newStart = findMatches[findIndex];
+    editor.focus();
+    editor.setSelectionRange(newStart, newStart + query.length);
+    requestAnimationFrame(() => scrollToSelection(editor));
+  }
+
+  function replaceAll() {
+    const query = findInput.value;
+    if (!query) return;
+    findMatches = []; 
+    computeMatches(); 
+    if (findMatches.length === 0) return;
+    const replaceText = replaceInput.value ?? "";
+    const text = editor.value;
+    let newText = text;
+    for (let k = findMatches.length - 1; k >= 0; k--) {
+      const start = findMatches[k];
+      newText = newText.slice(0, start) + replaceText + newText.slice(start + query.length);
+    }
+    editor.value = newText;
+    const tab = tabs.find(t => t.id === activeTabId);
+    if (tab) tab.content = editor.value;
+    updateStatus();
+    saveState();
+    clearFindState();
+  }
+
+  findCloseBtn.addEventListener("click", closeFindBar);
+  findNextBtn.addEventListener("click", () => goToMatch(1));
+  findPrevBtn.addEventListener("click", () => goToMatch(-1));
+  replaceBtn.addEventListener("click", replaceOne);
+  replaceAllBtn.addEventListener("click", replaceAll);
+
+  findInput.addEventListener("input", () => { clearFindState(); });
+  
+  document.querySelectorAll('input[name="searchType"]').forEach(radio => {
+    radio.addEventListener("change", () => {
+      clearFindState();
+      findInput.focus();
+    });
+  });
+
+  // ----- SISTEMA DE SALVAMENTO INTELIGENTE (INDEXEDDB + FILE SYSTEM ACCESS) -----
+  
+  function downloadFileFallback(filename, content) {
+    if (!filename.toLowerCase().endsWith(".txt")) filename += ".txt";
+    const blob = new Blob([content], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async function saveCurrentTab(forceSaveAs = false) {
+    const tab = tabs.find(t => t.id === activeTabId);
+    if (!tab) return;
+    const text = editor.value;
+
+    if ('showSaveFilePicker' in window) {
+      try {
+        if (!forceSaveAs && tab.fileHandle) {
+          // --- VERIFICAÇÃO DE PERMISSÃO APÓS RECARREGAR ---
+          // Se o navegador perdeu a permissão (ex: reload), pedimos novamente
+          // para o mesmo arquivo, sem abrir o "Salvar Como".
+          const options = { mode: 'readwrite' };
+          if ((await tab.fileHandle.queryPermission(options)) !== 'granted') {
+            const request = await tab.fileHandle.requestPermission(options);
+            if (request !== 'granted') throw new Error('Permissão negada');
+          }
+
+          const writable = await tab.fileHandle.createWritable();
+          await writable.write(text);
+          await writable.close();
+          return;
+        }
+
+        const options = {
+          suggestedName: tab.title.endsWith('.txt') ? tab.title : tab.title + '.txt',
+          types: [{ description: 'Arquivos de Texto', accept: { 'text/plain': ['.txt'] } }],
+        };
+
+        const handle = await window.showSaveFilePicker(options);
+        tab.fileHandle = handle;
+        tab.title = handle.name;
+
+        const writable = await handle.createWritable();
+        await writable.write(text);
+        await writable.close();
+
+        renderTabs();
+        saveState();
+
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error("Erro ao salvar:", err);
+          downloadFileFallback(tab.title, text);
+        }
+      }
+    } else {
+      downloadFileFallback(tab.title, text);
+    }
+  }
+
+  saveBtn.addEventListener("click", () => {
+    saveCurrentTab(true);
+  });
+
+  window.addEventListener("keydown", e => {
+    const active = document.activeElement;
+    if (active === editor) {
+      const prevScrollTop = editor.scrollTop;
+      const key = e.key;
+      const isScrollKey = ["ArrowUp","ArrowDown","PageUp","PageDown"].includes(key) || 
+                          ((key === "Home" || key === "End") && e.ctrlKey);
+      if (isScrollKey) setTimeout(() => { if (editor.scrollTop !== prevScrollTop) showEditorScrollbar(); }, 0);
+    }
+
+    if (e.ctrlKey && (e.key === "s" || e.key === "S")) {
+      e.preventDefault();
+      saveCurrentTab(false);
+      return;
+    }
+
+    if (e.ctrlKey && (e.key === "k" || e.key === "K")) {
+      e.preventDefault();
+      openFindBar();
+      return;
+    }
+
+    if (e.key === "Escape" && findBarVisible) {
+      e.preventDefault();
+      closeFindBar();
+      return;
+    }
+
+    if (!findBarVisible) return;
+    const inFindOrEditor = (active === findInput || active === editor);
+    if (!inFindOrEditor) return;
+
+    if (e.key === "Enter" || e.key === "ArrowDown") {
+      e.preventDefault();
+      goToMatch(1);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      goToMatch(-1);
+    }
+  });
+
+  // ----- INICIALIZAÇÃO -----
+  window.addEventListener("load", async () => {
+    try {
+      await openDB(); // Abre o banco de dados
+      const state = await loadStateDB(); // Carrega o estado
+
+      if (state && state.tabs.length > 0) {
+        tabs = state.tabs;
+        activeTabId = state.activeTabId;
+      } else {
+        const first = createNewTabObject();
+        tabs = [first];
+        activeTabId = first.id;
+      }
+    } catch (e) {
+      console.error("Erro no IndexedDB, iniciando limpo", e);
+      const first = createNewTabObject();
+      tabs = [first];
+      activeTabId = first.id;
+    }
+
+    renderTabs();
+    setActiveTab(activeTabId);
+    updateTabScrollButtons();
+  });
+</script>
+
+</body>
+</html>

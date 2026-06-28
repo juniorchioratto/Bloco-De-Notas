@@ -683,13 +683,45 @@
   let draggingTabId = null;
 
   function updateStatus() {
-    const text = editor.value;
-    statusLines.textContent = "Linhas: " + text.split("\n").length;
-    statusWords.textContent = "Palavras: " + (text.trim().split(/\s+/).filter(w => w).length);
-    statusChars.textContent = "Caracteres: " + text.length;
-    const promptsCount = text.split(/\r?\n/).filter(l => l.trim().length > 0).length;
-    statusPrompts.textContent = "Prompts: " + promptsCount;
+      const text = editor.value;
+      statusLines.textContent = "Linhas: " + text.split("\n").length;
+      statusWords.textContent = "Palavras: " + (text.trim().split(/\s+/).filter(w => w).length);
+      statusChars.textContent = "Caracteres: " + text.length;
+    
+      // Divide o texto em linhas para processar os prompts
+      const lines = text.split(/\r?\n/);
+      const totalPrompts = lines.filter(l => l.trim().length > 0).length;
+
+      // Descobre em qual linha (índice baseado em 0) o cursor está posicionado
+      const cursorPos = editor.selectionStart;
+      const textBeforeCursor = text.substring(0, cursorPos);
+      const currentLineIndex = textBeforeCursor.split("\n").length - 1;
+
+      // Conta quantos prompts válidos existem até a linha atual do cursor
+      let currentPromptIndex = 0;
+      for (let i = 0; i <= currentLineIndex; i++) {
+        if (lines[i] && lines[i].trim().length > 0) {
+          currentPromptIndex++;
+        }
+      }
+
+    // Se o cursor estiver em uma linha vazia (que não é um prompt), 
+    // podemos manter o indicador no último prompt válido encontrado
+    if (currentPromptIndex === 0 && totalPrompts > 0) {
+      currentPromptIndex = 1;
+    }
+
+    statusPrompts.textContent = "Prompts: " + currentPromptIndex + "/" + totalPrompts;
   }
+
+  // Atualiza a posição do prompt ao clicar com o mouse ou mover com as setas
+  editor.addEventListener("click", updateStatus);
+  editor.addEventListener("keyup", (e) => {
+    const navegação = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"];
+    if (navegação.includes(e.key)) {
+      updateStatus();
+    }
+  });
 
   // Agora salvamos no IndexedDB
   function saveState() {
